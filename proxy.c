@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <io.h>
 #include <fcntl.h>
 #define read _read
@@ -12,6 +10,7 @@
 #define strcasecmp _stricmp
 #else
 #include <strings.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #endif
 
