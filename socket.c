@@ -80,3 +80,6 @@ void tunnel(SOCKET remote_fd) {
         }
     }
 }
+
+void socket_init(){}
+void socket_end(){}

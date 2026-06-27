@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
@@ -8,6 +9,7 @@
 #define write _write
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
+#define close closesocket
 #else
 #include <strings.h>
 #include <sys/socket.h>
@@ -15,19 +17,10 @@
 #endif
 
 #include "utils.h"
+#include "socket.h"
 
 int main(int argc, char *argv[]) {
-#ifdef _WIN32
-    WSADATA wsaData;
-    int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (err != 0) {
-        fprintf(stderr, "WSAStartup failed: %d\n", err);
-        return 1;
-    }
-    _setmode(_fileno(stdin), _O_BINARY);
-    _setmode(_fileno(stdout), _O_BINARY);
-#endif
-
+    socket_init();
     char expected_b64[512] = "";
     int  authenticated = argc != 3;
 
@@ -102,11 +95,9 @@ int main(int argc, char *argv[]) {
 
         write(1, "HTTP/1.0 200 Connection established\r\n\r\n", 39);
         tunnel(remote);
-        closesocket(remote);
+        close(remote);
         fprintf(stderr, "Disconnect: %s:%s\n", host, port);
-#ifdef _WIN32
-        WSACleanup();
-#endif
+        socket_end();
         return 0;
     }
 
@@ -132,9 +123,7 @@ int main(int argc, char *argv[]) {
     send(remote, "\r\n", 2, 0);
 
     tunnel(remote);
-    closesocket(remote);
-#ifdef _WIN32
-    WSACleanup();
-#endif
+    close(remote);
+    socket_end();
     return 0;
 }

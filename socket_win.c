@@ -17,6 +17,22 @@
 #include "socket.h"
 #include "utils.h"
 
+void socket_init(){
+    WSADATA wsaData;
+    int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (err != 0) {
+        fprintf(stderr, "WSAStartup failed: %d\n", err);
+        return 1;
+    }
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+}
+
+
+void socket_end(){
+    WSACleanup();
+}
+
 SOCKET connect_to(const char *host, const char *port) {
     struct addrinfo hints;
     struct addrinfo *list;
