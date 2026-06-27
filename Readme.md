@@ -26,7 +26,22 @@ ninja -C build
 
 ## Usage
 
-### Unix / Linux
+### Standalone Server Mode (Recommended - No external dependencies)
+You can run the proxy directly as a standalone TCP server on both Windows and Unix:
+```sh
+# Run on port 8080
+./build/proxy --listen 8080
+
+# Run on port 8080 with verbose logging (displays method, host, and port for all connections)
+./build/proxy --listen 8080 -v
+
+# Run on port 8080 with authentication
+./build/proxy --listen 8080 myuser mypass
+```
+
+### Classic Stdio / Wrapper Mode (Backward Compatible)
+
+#### Unix / Linux
 Using `tcpsvd` (from busybox/ucspi-tcp):
 ```sh
 tcpsvd -vE 0.0.0.0 8080 ./build/proxy
@@ -36,7 +51,7 @@ Or using `socat`:
 socat TCP-LISTEN:8080,reuseaddr,fork EXEC:./build/proxy
 ```
 
-### Windows
+#### Windows
 Using `ncat` (from Nmap):
 ```powershell
 ncat -l -p 8080 -e ".\build\proxy.exe" --keep-open
@@ -48,9 +63,15 @@ socat TCP-LISTEN:8080,reuseaddr,fork EXEC:".\build\proxy.exe"
 
 ## Authentication
 If you wish to require proxy authentication, pass the `username` and `password` as command-line arguments:
+
+### Standalone Server Mode
 ```sh
 # Example: require 'user' and 'pass'
+./build/proxy --listen 8080 user pass
+```
 
+### Classic Stdio / Wrapper Mode
+```sh
 # Unix
 socat TCP-LISTEN:8080,reuseaddr,fork EXEC:"./build/proxy user pass"
 

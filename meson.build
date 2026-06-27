@@ -7,6 +7,7 @@ if host_machine.system() == 'windows'
     deps += cc.find_library('ws2_32')
     sources += 'socket_win.c'
 else
+    deps += dependency('threads')
     sources += 'socket.c'
 endif
 

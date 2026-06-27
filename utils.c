@@ -3,6 +3,7 @@
 #define read _read
 #else
 #include <unistd.h>
+#include <sys/socket.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,14 +12,39 @@
 
 #include "utils.h"
 
-int read_line(int fd, char *buf, int max) {
-    int i = 0;
+int my_recv(SOCKET fd, int is_socket, void *buf, int len) {
+    if (is_socket) {
+        return recv(fd, buf, len, 0);
+    } else {
+#ifdef _WIN32
+        return _read((int)fd, buf, len);
+#else
+        return read(fd, buf, len);
+#endif
+    }
+}
 
+int my_send(SOCKET fd, int is_socket, const void *buf, int len) {
+    if (is_socket) {
+        return send(fd, buf, len, 0);
+    } else {
+#ifdef _WIN32
+        return _write((int)fd, buf, len);
+#else
+        return write(fd, buf, len);
+#endif
+    }
+}
+
+int read_line_ex(SOCKET fd, int is_socket, char *buf, int max) {
+    int i = 0;
     while (i < max - 1) {
-        int n = read(fd, buf + i, 1);
+        char c;
+        int n = my_recv(fd, is_socket, &c, 1);
         if (n <= 0)
             break;
-        if (buf[i] == '\n') {
+        buf[i] = c;
+        if (c == '\n') {
             i++;
             break;
         }
@@ -26,6 +52,10 @@ int read_line(int fd, char *buf, int max) {
     }
     buf[i] = '\0';
     return i;
+}
+
+int read_line(int fd, char *buf, int max) {
+    return read_line_ex((SOCKET)fd, 0, buf, max);
 }
 
 char *parse_host_port(char *url, char *host, int host_size,
