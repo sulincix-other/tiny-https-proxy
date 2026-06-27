@@ -28,7 +28,7 @@ static int copy_data(int from_fd, int to_fd) {
     return 0;
 }
 
-SOCKET connect_to(const char *host, const char *port) {
+int connect_to(const char *host, const char *port) {
     struct addrinfo hints;
     struct addrinfo *list;
     struct addrinfo *rp;
@@ -40,19 +40,18 @@ SOCKET connect_to(const char *host, const char *port) {
     int err = getaddrinfo(host, port, &hints, &list);
     if (err != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
-        return INVALID_SOCKET;
+        return -1;
     }
 
-    SOCKET fd = INVALID_SOCKET;
+    int fd;
     rp = list;
     while (rp != NULL) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (fd != INVALID_SOCKET) {
+        if (fd) {
             if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
                 break;
             fprintf(stderr, "connect to %s:%s failed: errno = %d (%s)\n", host, port, errno, strerror(errno));
-            closesocket(fd);
-            fd = INVALID_SOCKET;
+            close(fd);
         } else {
             fprintf(stderr, "socket creation failed: errno = %d (%s)\n", errno, strerror(errno));
         }
@@ -62,7 +61,7 @@ SOCKET connect_to(const char *host, const char *port) {
     return fd;
 }
 
-void tunnel(SOCKET remote_fd) {
+void tunnel(int remote_fd) {
     while (1) {
         fd_set read_fds;
         FD_ZERO(&read_fds);

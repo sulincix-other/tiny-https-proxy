@@ -1,8 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "socket.h"
-
 #define BUF_SIZE 8192
 
 int read_line(int fd, char *buf, int max);
