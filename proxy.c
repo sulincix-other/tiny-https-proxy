@@ -1,12 +1,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#include <fcntl.h>
+#define read _read
+#define write _write
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#else
 #include <strings.h>
 #include <unistd.h>
+#endif
 
 #include "utils.h"
 
 int main(int argc, char *argv[]) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (err != 0) {
+        fprintf(stderr, "WSAStartup failed: %d\n", err);
+        return 1;
+    }
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
     char expected_b64[512] = "";
     int  authenticated = argc != 3;
 
@@ -73,24 +95,27 @@ int main(int argc, char *argv[]) {
             return 1;
 
         fprintf(stderr, "Connect: %s:%s\n", host, port);
-        int remote = connect_to(host, port);
-        if (remote < 0) {
+        SOCKET remote = connect_to(host, port);
+        if (remote == INVALID_SOCKET) {
             write(1, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
             return 1;
         }
 
         write(1, "HTTP/1.0 200 Connection established\r\n\r\n", 39);
         tunnel(remote);
-        close(remote);
+        closesocket(remote);
         fprintf(stderr, "Disconnect: %s:%s\n", host, port);
+#ifdef _WIN32
+        WSACleanup();
+#endif
         return 0;
     }
 
     char *path = parse_host_port(url, host, sizeof(host),
                                  port, sizeof(port));
 
-    int remote = connect_to(host, port);
-    if (remote < 0) {
+    SOCKET remote = connect_to(host, port);
+    if (remote == INVALID_SOCKET) {
         write(1, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
         return 1;
     }
@@ -99,15 +124,18 @@ int main(int argc, char *argv[]) {
         char request[BUF_SIZE];
         int len = snprintf(request, sizeof(request),
                            "%s %s HTTP/1.0\r\n", method, path);
-        write(remote, request, len);
+        send(remote, request, len, 0);
     }
 
     if (header_len > 0)
-        write(remote, headers, header_len);
+        send(remote, headers, header_len, 0);
 
-    write(remote, "\r\n", 2);
+    send(remote, "\r\n", 2, 0);
 
     tunnel(remote);
-    close(remote);
+    closesocket(remote);
+#ifdef _WIN32
+    WSACleanup();
+#endif
     return 0;
 }

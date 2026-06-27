@@ -1,7 +1,18 @@
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#include <fcntl.h>
+#include <process.h>
+#include <windows.h>
+#define read _read
+#define write _write
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +37,8 @@ int read_line(int fd, char *buf, int max) {
     return i;
 }
 
-int copy_data(int from_fd, int to_fd) {
+#ifndef _WIN32
+int copy_data(SOCKET from_fd, SOCKET to_fd) {
     char buf[BUF_SIZE];
     int n = read(from_fd, buf, BUF_SIZE);
 
@@ -42,8 +54,9 @@ int copy_data(int from_fd, int to_fd) {
     }
     return 0;
 }
+#endif
 
-int connect_to(const char *host, const char *port) {
+SOCKET connect_to(const char *host, const char *port) {
     struct addrinfo hints;
     struct addrinfo *list;
     struct addrinfo *rp;
@@ -54,19 +67,23 @@ int connect_to(const char *host, const char *port) {
 
     int err = getaddrinfo(host, port, &hints, &list);
     if (err != 0) {
+#ifdef _WIN32
+        fprintf(stderr, "getaddrinfo error: %d\n", err);
+#else
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
-        return -1;
+#endif
+        return INVALID_SOCKET;
     }
 
-    int fd = -1;
+    SOCKET fd = INVALID_SOCKET;
     rp = list;
     while (rp != NULL) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (fd >= 0) {
-            if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
+        if (fd != INVALID_SOCKET) {
+            if (connect(fd, rp->ai_addr, (int)rp->ai_addrlen) == 0)
                 break;
-            close(fd);
-            fd = -1;
+            closesocket(fd);
+            fd = INVALID_SOCKET;
         }
         rp = rp->ai_next;
     }
@@ -74,7 +91,62 @@ int connect_to(const char *host, const char *port) {
     return fd;
 }
 
-void tunnel(int remote_fd) {
+#ifdef _WIN32
+struct tunnel_args {
+    SOCKET remote_fd;
+};
+
+unsigned __stdcall tunnel_recv_thread(void *arg) {
+    SOCKET remote_fd = ((struct tunnel_args *)arg)->remote_fd;
+    free(arg);
+    char buf[BUF_SIZE];
+    while (1) {
+        int n = recv(remote_fd, buf, BUF_SIZE, 0);
+        if (n <= 0)
+            break;
+        int pos = 0;
+        while (pos < n) {
+            int written = _write(1, buf + pos, n - pos);
+            if (written <= 0)
+                break;
+            pos += written;
+        }
+    }
+    closesocket(remote_fd);
+    exit(0);
+    return 0;
+}
+
+void tunnel(SOCKET remote_fd) {
+    struct tunnel_args *args = malloc(sizeof(struct tunnel_args));
+    if (!args) return;
+    args->remote_fd = remote_fd;
+
+    HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, tunnel_recv_thread, args, 0, NULL);
+
+    char buf[BUF_SIZE];
+    while (1) {
+        int n = _read(0, buf, BUF_SIZE);
+        if (n <= 0)
+            break;
+        int pos = 0;
+        while (pos < n) {
+            int written = send(remote_fd, buf + pos, n - pos, 0);
+            if (written <= 0)
+                goto end;
+            pos += written;
+        }
+    }
+
+end:
+    closesocket(remote_fd);
+    if (thread) {
+        WaitForSingleObject(thread, INFINITE);
+        CloseHandle(thread);
+    }
+}
+#else
+void tunnel(SOCKET remote_fd) {
     while (1) {
         fd_set read_fds;
         FD_ZERO(&read_fds);
@@ -96,6 +168,7 @@ void tunnel(int remote_fd) {
         }
     }
 }
+#endif
 
 char *parse_host_port(char *url, char *host, int host_size,
                 char *port, int port_size) {
