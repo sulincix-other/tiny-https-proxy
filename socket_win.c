@@ -1,18 +1,19 @@
 #ifdef _WIN32
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <io.h>
+#include <fcntl.h>
 #include <process.h>
-#include <windows.h>
 
 #define read _read
 #define write _write
-
-#include <winsock2.h>
-#include <ws2tcpip.h>
 
 #include "socket.h"
 #include "utils.h"
@@ -22,12 +23,11 @@ void socket_init(){
     int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (err != 0) {
         fprintf(stderr, "WSAStartup failed: %d\n", err);
-        return 1;
+        return;
     }
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
 }
-
 
 void socket_end(){
     WSACleanup();

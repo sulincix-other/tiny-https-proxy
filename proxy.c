@@ -9,7 +9,6 @@
 #define write _write
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
-#define close closesocket
 #else
 #include <strings.h>
 #include <sys/socket.h>
@@ -95,7 +94,7 @@ int main(int argc, char *argv[]) {
 
         write(1, "HTTP/1.0 200 Connection established\r\n\r\n", 39);
         tunnel(remote);
-        close(remote);
+        closesocket(remote);
         fprintf(stderr, "Disconnect: %s:%s\n", host, port);
         socket_end();
         return 0;
@@ -123,7 +122,7 @@ int main(int argc, char *argv[]) {
     send(remote, "\r\n", 2, 0);
 
     tunnel(remote);
-    close(remote);
+    closesocket(remote);
     socket_end();
     return 0;
 }

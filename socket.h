@@ -1,10 +1,13 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
-
-#ifndef _WIN32
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+typedef int SOCKET;
 #define INVALID_SOCKET -1
-#define SOCKET int
+#define closesocket(s) close(s)
 #endif
 
 void socket_init();

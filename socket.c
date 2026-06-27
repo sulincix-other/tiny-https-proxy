@@ -28,7 +28,7 @@ static int copy_data(int from_fd, int to_fd) {
     return 0;
 }
 
-int connect_to(const char *host, const char *port) {
+SOCKET connect_to(const char *host, const char *port) {
     struct addrinfo hints;
     struct addrinfo *list;
     struct addrinfo *rp;
@@ -40,17 +40,18 @@ int connect_to(const char *host, const char *port) {
     int err = getaddrinfo(host, port, &hints, &list);
     if (err != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
-        return -1;
+        return INVALID_SOCKET;
     }
 
-    SOCKET fd = -1;
+    SOCKET fd = INVALID_SOCKET;
     rp = list;
     while (rp != NULL) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (fd < 0) {
-            if (connect(fd, rp->ai_addr, (int)rp->ai_addrlen) == 0)
+        if (fd != INVALID_SOCKET) {
+            if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
                 break;
-            close(fd);
+            closesocket(fd);
+            fd = INVALID_SOCKET;
         }
         rp = rp->ai_next;
     }
