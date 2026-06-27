@@ -19,7 +19,11 @@
 #include "socket.h"
 
 int main(int argc, char *argv[]) {
-    socket_init();
+    if (socket_init() != 0) {
+        return 1;
+    }
+    atexit(socket_end);
+
     char expected_b64[512] = "";
     int  authenticated = argc != 3;
 
@@ -72,6 +76,8 @@ int main(int argc, char *argv[]) {
         if (header_len + n < (int)sizeof(headers)) {
             memcpy(headers + header_len, line, n);
             header_len += n;
+        } else {
+            fprintf(stderr, "Warning: client header buffer full, ignoring additional header line: %s", line);
         }
     }
 
@@ -96,7 +102,6 @@ int main(int argc, char *argv[]) {
         tunnel(remote);
         closesocket(remote);
         fprintf(stderr, "Disconnect: %s:%s\n", host, port);
-        socket_end();
         return 0;
     }
 
@@ -123,6 +128,5 @@ int main(int argc, char *argv[]) {
 
     tunnel(remote);
     closesocket(remote);
-    socket_end();
     return 0;
 }

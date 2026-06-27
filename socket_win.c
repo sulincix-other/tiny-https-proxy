@@ -18,15 +18,16 @@
 #include "socket.h"
 #include "utils.h"
 
-void socket_init(){
+int socket_init(){
     WSADATA wsaData;
     int err = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (err != 0) {
         fprintf(stderr, "WSAStartup failed: %d\n", err);
-        return;
+        return err;
     }
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
+    return 0;
 }
 
 void socket_end(){
@@ -55,8 +56,11 @@ SOCKET connect_to(const char *host, const char *port) {
         if (fd != INVALID_SOCKET) {
             if (connect(fd, rp->ai_addr, (int)rp->ai_addrlen) == 0)
                 break;
+            fprintf(stderr, "connect to %s:%s failed: WSAGetLastError() = %d\n", host, port, WSAGetLastError());
             closesocket(fd);
             fd = INVALID_SOCKET;
+        } else {
+            fprintf(stderr, "socket creation failed: WSAGetLastError() = %d\n", WSAGetLastError());
         }
         rp = rp->ai_next;
     }

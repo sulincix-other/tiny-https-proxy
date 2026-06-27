@@ -50,8 +50,11 @@ SOCKET connect_to(const char *host, const char *port) {
         if (fd != INVALID_SOCKET) {
             if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
                 break;
+            fprintf(stderr, "connect to %s:%s failed: errno = %d (%s)\n", host, port, errno, strerror(errno));
             closesocket(fd);
             fd = INVALID_SOCKET;
+        } else {
+            fprintf(stderr, "socket creation failed: errno = %d (%s)\n", errno, strerror(errno));
         }
         rp = rp->ai_next;
     }
@@ -82,5 +85,8 @@ void tunnel(SOCKET remote_fd) {
     }
 }
 
-void socket_init(){}
+int socket_init(){
+    return 0;
+}
+
 void socket_end(){}
