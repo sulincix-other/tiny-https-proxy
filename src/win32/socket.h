@@ -8,6 +8,6 @@ int socket_init();
 void socket_end();
 
 SOCKET connect_to(const char *host, const char *port);
-void tunnel(int remote_fd);
+void tunnel(SOCKET remote_fd);
 
 #endif

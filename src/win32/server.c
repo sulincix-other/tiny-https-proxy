@@ -11,6 +11,7 @@
 
 #include "platform.h"
 #include "server.h"
+#include "utils.h"
 
 extern int proxy_run(int, char **);
 
