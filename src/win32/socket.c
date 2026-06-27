@@ -87,7 +87,6 @@ static unsigned __stdcall tunnel_recv_thread(void *arg) {
         }
     }
     closesocket(remote_fd);
-    exit(0);
     return 0;
 }
 
@@ -99,7 +98,24 @@ void tunnel(SOCKET remote_fd) {
     HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, tunnel_recv_thread, args, 0, NULL);
 
     char buf[BUF_SIZE];
+    HANDLE hStdin = (HANDLE)_get_osfhandle(0);
+    int is_pipe = (GetFileType(hStdin) == FILE_TYPE_PIPE);
+
     while (1) {
+        if (is_pipe) {
+            if (WaitForSingleObject(thread, 0) == WAIT_OBJECT_0) {
+                break;
+            }
+            DWORD bytes_avail = 0;
+            if (!PeekNamedPipe(hStdin, NULL, 0, NULL, &bytes_avail, NULL)) {
+                break;
+            }
+            if (bytes_avail == 0) {
+                Sleep(10);
+                continue;
+            }
+        }
+
         int n = _read(0, buf, BUF_SIZE);
         if (n <= 0)
             break;
