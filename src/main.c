@@ -17,8 +17,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "tiny-proxy  :  tcpsvd / socat mode\n");
         return 2;
     }
-    const char *host;
-    const char *port;
+    const char *host = NULL;
+    const char *port = NULL;
     for(int i=1; argv[i]; i++){
         if (strcmp(argv[i], "--listen") == 0) {
             if (argv[i+1] && argv[i+2]){
