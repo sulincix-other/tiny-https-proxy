@@ -5,7 +5,7 @@
 #include "server.h"
 #include "socket.h"
 
-int proxy_run(int, char **);
+int proxy_run(int, int);
 const char *auth = NULL;
 
 int main(int argc, char *argv[]) {
@@ -40,5 +40,5 @@ int main(int argc, char *argv[]) {
         atexit(socket_end);
         return run_server(host, port);
     }
-    return proxy_run(argc, argv);
+    return proxy_run(0, 1);
 }

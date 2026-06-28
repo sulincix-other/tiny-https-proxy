@@ -8,7 +8,7 @@
 
 extern const char* auth;
 
-int proxy_run_fd(int argc, char *argv[], int in_fd, int out_fd) {
+int proxy_run(int in_fd, int out_fd) {
     if (socket_init() != 0) {
         return 1;
     }
@@ -125,8 +125,4 @@ int proxy_run_fd(int argc, char *argv[], int in_fd, int out_fd) {
 #endif
     closesocket(remote);
     return 0;
-}
-
-int proxy_run(int argc, char *argv[]) {
-    return proxy_run_fd(argc, argv, 0, 1);
 }
