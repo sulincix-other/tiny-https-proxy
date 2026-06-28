@@ -12,7 +12,7 @@
 #include "platform.h"
 #include "server.h"
 
-extern int proxy_run(int, char **);
+extern int proxy_run(int, int);
 
 static int lfd;
 
@@ -60,8 +60,7 @@ int run_server(const char *host, const char *port) {
                 dup2(cfd, 1);
                 if (cfd > 1) close(cfd);
                 signal(SIGCHLD, SIG_DFL);
-                char *args[] = {"proxy", NULL};
-                int status = proxy_run(1, args);
+                int status = proxy_run(0, 1);
                 _exit(status);
             }
             close(cfd);

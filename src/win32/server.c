@@ -13,8 +13,7 @@
 #include "server.h"
 #include "utils.h"
 
-extern int proxy_run(int, char **);
-extern int proxy_run_fd(int, char **, int in_fd, int out_fd);
+extern int proxy_run(int in_fd, int out_fd);
 
 struct relay_in_args {
     SOCKET cfd;
@@ -82,8 +81,7 @@ static unsigned __stdcall handle_client(void *arg) {
     HANDLE hIn = (HANDLE)_beginthreadex(NULL, 0, relay_in, in_a, 0, NULL);
     HANDLE hOut = (HANDLE)_beginthreadex(NULL, 0, relay_out, out_a, 0, NULL);
 
-    char *args[] = {"proxy", NULL};
-    proxy_run_fd(1, args, stdin_pipe[0], stdout_pipe[1]);
+    proxy_run(stdin_pipe[0], stdout_pipe[1]);
 
     shutdown(cfd, SD_BOTH);
     closesocket(cfd);
