@@ -14,6 +14,7 @@
 #include "utils.h"
 
 extern int proxy_run(int, char **);
+extern int proxy_run_fd(int, char **, int in_fd, int out_fd);
 
 struct relay_in_args {
     SOCKET cfd;
@@ -59,11 +60,12 @@ static unsigned __stdcall relay_out(void *arg) {
     return 0;
 }
 
-static void handle_client(SOCKET cfd) {
+static unsigned __stdcall handle_client(void *arg) {
+    SOCKET cfd = (SOCKET)(uintptr_t)arg;
     int stdin_pipe[2], stdout_pipe[2];
-    if (_pipe(stdin_pipe, 4096, _O_BINARY) != 0) { closesocket(cfd); return; }
+    if (_pipe(stdin_pipe, 4096, _O_BINARY) != 0) { closesocket(cfd); return 1; }
     if (_pipe(stdout_pipe, 4096, _O_BINARY) != 0) {
-        _close(stdin_pipe[0]); _close(stdin_pipe[1]); closesocket(cfd); return;
+        _close(stdin_pipe[0]); _close(stdin_pipe[1]); closesocket(cfd); return 1;
     }
 
     struct relay_in_args *in_a = malloc(sizeof(*in_a));
@@ -72,7 +74,7 @@ static void handle_client(SOCKET cfd) {
         free(in_a); free(out_a);
         _close(stdin_pipe[0]); _close(stdin_pipe[1]);
         _close(stdout_pipe[0]); _close(stdout_pipe[1]);
-        closesocket(cfd); return;
+        closesocket(cfd); return 1;
     }
     in_a->cfd = cfd; in_a->pipe_w = stdin_pipe[1];
     out_a->cfd = cfd; out_a->pipe_r = stdout_pipe[0];
@@ -80,19 +82,17 @@ static void handle_client(SOCKET cfd) {
     HANDLE hIn = (HANDLE)_beginthreadex(NULL, 0, relay_in, in_a, 0, NULL);
     HANDLE hOut = (HANDLE)_beginthreadex(NULL, 0, relay_out, out_a, 0, NULL);
 
-    _dup2(stdin_pipe[0], 0);
-    _dup2(stdout_pipe[1], 1);
+    char *args[] = {"proxy", NULL};
+    proxy_run_fd(1, args, stdin_pipe[0], stdout_pipe[1]);
+
+    shutdown(cfd, SD_BOTH);
+    closesocket(cfd);
     _close(stdin_pipe[0]);
     _close(stdout_pipe[1]);
-
-    char *args[] = {"proxy", NULL};
-    proxy_run(1, args);
-
-    closesocket(cfd);
-    _close(stdin_pipe[1]);
-    _close(stdout_pipe[0]);
     if (hIn) { WaitForSingleObject(hIn, INFINITE); CloseHandle(hIn); }
     if (hOut) { WaitForSingleObject(hOut, INFINITE); CloseHandle(hOut); }
+
+    return 0;
 }
 
 int run_server(const char *host, const char *port) {
@@ -125,8 +125,7 @@ int run_server(const char *host, const char *port) {
         SOCKET cfd = accept(lfd, NULL, NULL);
         if (cfd == INVALID_SOCKET) continue;
 
-        HANDLE th = (HANDLE)_beginthreadex(NULL, 0,
-            (unsigned (__stdcall *)(void *))handle_client,
+        HANDLE th = (HANDLE)_beginthreadex(NULL, 0, handle_client,
             (void *)(uintptr_t)cfd, 0, NULL);
         if (th) { CloseHandle(th); }
         else { closesocket(cfd); }

@@ -68,10 +68,13 @@ SOCKET connect_to(const char *host, const char *port) {
 
 struct tunnel_args {
     SOCKET remote_fd;
+    int out_fd;
 };
 
 static unsigned __stdcall tunnel_recv_thread(void *arg) {
-    SOCKET remote_fd = ((struct tunnel_args *)arg)->remote_fd;
+    struct tunnel_args *a = arg;
+    SOCKET remote_fd = a->remote_fd;
+    int out_fd = a->out_fd;
     free(arg);
     char buf[BUF_SIZE];
     while (1) {
@@ -80,25 +83,25 @@ static unsigned __stdcall tunnel_recv_thread(void *arg) {
             break;
         int pos = 0;
         while (pos < n) {
-            int written = _write(1, buf + pos, n - pos);
+            int written = _write(out_fd, buf + pos, n - pos);
             if (written <= 0)
                 break;
             pos += written;
         }
     }
-    closesocket(remote_fd);
     return 0;
 }
 
-void tunnel(SOCKET remote_fd) {
+void tunnel(SOCKET remote_fd, int in_fd, int out_fd) {
     struct tunnel_args *args = malloc(sizeof(struct tunnel_args));
     if (!args) return;
     args->remote_fd = remote_fd;
+    args->out_fd = out_fd;
 
     HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, tunnel_recv_thread, args, 0, NULL);
 
     char buf[BUF_SIZE];
-    HANDLE hStdin = (HANDLE)_get_osfhandle(0);
+    HANDLE hStdin = (HANDLE)_get_osfhandle(in_fd);
     int is_pipe = (GetFileType(hStdin) == FILE_TYPE_PIPE);
 
     while (1) {
@@ -116,7 +119,7 @@ void tunnel(SOCKET remote_fd) {
             }
         }
 
-        int n = _read(0, buf, BUF_SIZE);
+        int n = _read(in_fd, buf, BUF_SIZE);
         if (n <= 0)
             break;
         int pos = 0;
@@ -129,9 +132,10 @@ void tunnel(SOCKET remote_fd) {
     }
 
 end:
-    closesocket(remote_fd);
     if (thread) {
         WaitForSingleObject(thread, INFINITE);
         CloseHandle(thread);
     }
 }
+
+

@@ -8,7 +8,7 @@
 
 extern const char* auth;
 
-int proxy_run(int argc, char *argv[]) {
+int proxy_run_fd(int argc, char *argv[], int in_fd, int out_fd) {
     if (socket_init() != 0) {
         return 1;
     }
@@ -29,7 +29,7 @@ int proxy_run(int argc, char *argv[]) {
     char headers[BUF_SIZE];
     int  header_len = 0;
 
-    int n = read_line(0, line, BUF_SIZE);
+    int n = read_line(in_fd, line, BUF_SIZE);
     if (n <= 0)
         return 1;
 
@@ -38,7 +38,7 @@ int proxy_run(int argc, char *argv[]) {
 
     headers[0] = '\0';
     while (1) {
-        n = read_line(0, line, BUF_SIZE);
+        n = read_line(in_fd, line, BUF_SIZE);
         if (n <= 0)
             break;
         if (line[0] == '\r' || line[0] == '\0')
@@ -71,7 +71,7 @@ int proxy_run(int argc, char *argv[]) {
 
     if (!authenticated) {
         const char *resp = "HTTP/1.0 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"proxy\"\r\n\r\n";
-        write(1, resp, strlen(resp));
+        write(out_fd, resp, strlen(resp));
         return 1;
     }
 
@@ -82,12 +82,16 @@ int proxy_run(int argc, char *argv[]) {
         fprintf(stderr, "Connect: %s:%s\n", host, port);
         SOCKET remote = connect_to(host, port);
         if (remote == INVALID_SOCKET) {
-            write(1, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
+            write(out_fd, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
             return 1;
         }
 
-        write(1, "HTTP/1.0 200 Connection established\r\n\r\n", 39);
+        write(out_fd, "HTTP/1.0 200 Connection established\r\n\r\n", 39);
+#ifdef _WIN32
+        tunnel(remote, in_fd, out_fd);
+#else
         tunnel(remote);
+#endif
         closesocket(remote);
         fprintf(stderr, "Disconnect: %s:%s\n", host, port);
         return 0;
@@ -98,7 +102,7 @@ int proxy_run(int argc, char *argv[]) {
 
     SOCKET remote = connect_to(host, port);
     if (remote == INVALID_SOCKET) {
-        write(1, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
+        write(out_fd, "HTTP/1.0 502 Bad Gateway\r\n\r\n", 28);
         return 1;
     }
 
@@ -114,7 +118,15 @@ int proxy_run(int argc, char *argv[]) {
 
     send(remote, "\r\n", 2, 0);
 
+#ifdef _WIN32
+    tunnel(remote, in_fd, out_fd);
+#else
     tunnel(remote);
+#endif
     closesocket(remote);
     return 0;
+}
+
+int proxy_run(int argc, char *argv[]) {
+    return proxy_run_fd(argc, argv, 0, 1);
 }
