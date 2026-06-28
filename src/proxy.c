@@ -6,20 +6,20 @@
 #include "utils.h"
 #include "socket.h"
 
+extern const char* auth;
+
 int proxy_run(int argc, char *argv[]) {
     if (socket_init() != 0) {
         return 1;
     }
     atexit(socket_end);
 
-    char expected_b64[512] = "";
-    int  authenticated = argc != 3;
+    char expected_b64[1024] = "";
+    int  authenticated = (auth == NULL);
 
-    if (argc == 3) {
-        char cred[256];
-        int cred_len = snprintf(cred, sizeof(cred), "%s:%s", argv[1], argv[2]);
-        base64_encode((unsigned char *)cred, cred_len, expected_b64, sizeof(expected_b64));
-    }
+    char cred[1024];
+    int cred_len = snprintf(cred, sizeof(cred), "%s", auth);
+    base64_encode((unsigned char *)cred, cred_len, expected_b64, sizeof(expected_b64));
 
     char line[BUF_SIZE];
     char method[64];
